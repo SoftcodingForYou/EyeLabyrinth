@@ -1,4 +1,4 @@
-from multiprocessing                        import Pipe
+from multiprocessing                        import Value
 from backend                                import Backend
 from frontend                               import Labyrinth
 
@@ -6,11 +6,11 @@ class Main():
 
     def __init__(self, *args):
 
-        self.recv_conn, self.send_conn = Pipe(duplex = False)
+        shared_direction                = Value('i', 0)
 
         bkd = Backend()
-        bkd.start_receiver(self.send_conn, bkd.receiver_socket)
-        lab = Labyrinth(self.recv_conn)
+        bkd.start_receiver(shared_direction, bkd.receiver_socket)
+        lab = Labyrinth(shared_direction)
 
 Main()
 

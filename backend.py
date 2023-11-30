@@ -1,4 +1,4 @@
-from numpy                          import abs, zeros, pad, array, expand_dims, concatenate, median, append
+from numpy                          import abs, mean, std, zeros, pad, array, expand_dims, concatenate, median, append
 import scipy.signal
 import socket
 import json
@@ -40,12 +40,11 @@ class Backend:
         # =================================================================
         self.filter_order   = 3 #scalar
         self.frequency_bands= {
-            'Workshop':     (0.05,  6),
+            'Workshop':     (0.001,  6),
             'LineNoise':    (46,    54)}
 
         self.min_value      = 0
         self.max_value      = 0
-        self.turn_threshold = 0.5 # How much of the min or max value has to be reached to trigger a turn
         
         self.prepare_filters()
         self.receiver_socket = self.prepare_socket(self.ip, self.port)
@@ -88,7 +87,7 @@ class Backend:
         return eeg_data, valid_eeg
 
 
-    def fill_buffer(self, sending_pipe, conn_socket):
+    def fill_buffer(self, shared_direction, conn_socket):
         # This functions fills the buffer in self.buffer
         # that later can be accesed to perfom the real time analysis
         
@@ -117,19 +116,19 @@ class Backend:
                 direction_change    = self.direction_change(filtered_buffer) # -1 left, 0 no change, 1 right
 
                 # Push to frontend
-                sending_pipe.send((direction_change))
+                shared_direction.value = direction_change
 
         self.receiver_sock.close()
         return
 
 
-    def start_receiver(self, sending_pipe, conn_socket):
+    def start_receiver(self, shared_direction, conn_socket):
         # Define thread for receiving
         self.receiver_thread = Thread(
             target=self.fill_buffer,
             name='receiver_thread',
             daemon=False,
-            args=(sending_pipe, conn_socket))
+            args=(shared_direction, conn_socket))
         # start thread
         self.receiver_thread.start()
 
@@ -205,24 +204,31 @@ class Backend:
     
 
     def direction_change(self, signal):
-        med_value = median(signal[-int(self.sample_rate/2):])
+        med_value           = median(signal[-int(self.sample_rate/4):])
+        std_value           = std(signal[-int(self.sample_rate/2):])
 
-        if med_value < self.min_value:
-            self.min_value = med_value
-        if med_value > self.max_value:
-            self.max_value = med_value
+        avg_value           = mean(signal)
 
-        # print(self.min_value)
-        # print(self.max_value)
-        
-        # self.count = self.count + 1
-        # if self.count == self.sample_rate:
-        #     print(med_value)
-        #     self.count = 0
+        signal_baseline     = med_value - avg_value # this value ideally
+        # would always be near 0 when looking straight at the screen
+        # ("neutral head position")
 
-        if med_value > self.turn_threshold * self.max_value:
+        self.left_threshold = - 4 * std_value
+        self.right_threshold = + 4 * std_value
+
+        self.count = self.count + 1
+        if self.count == self.sample_rate:  # Plot once per second to avoid 
+                                            # slowing down the program 
+                                            # because of the printing
+            print("\n")
+            print(self.left_threshold)
+            print(self.right_threshold)
+            print(signal_baseline)
+            self.count = 0
+
+        if signal_baseline > self.right_threshold:
             return 1
-        elif med_value < self.turn_threshold * self.min_value:
+        elif signal_baseline < self.left_threshold:
             return -1
         else:
             return 0

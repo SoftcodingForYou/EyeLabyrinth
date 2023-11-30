@@ -23,14 +23,13 @@ class Player(object):
         self.move_angle     = current_angle + shift
         x                   = math.cos(self.move_angle)
         y                   = math.sin(self.move_angle)
-
         return (x, y)
 
     def move(self, walls, dx, dy):
         
         # Move each axis separately. Note that this checks for collisions both times.
-        self.move_single_axis(walls, dx, 0)
-        self.move_single_axis(walls, 0, dy)
+        self.move_single_axis(walls, dx * 2, 0)
+        self.move_single_axis(walls, 0, dy * 2)
     
     def move_single_axis(self, walls, dx, dy):
         
@@ -59,7 +58,11 @@ class Wall(object):
 
 class Labyrinth():
 
-    def __init__(self, recv_conn):
+    def __init__(self, shared_direction):
+
+        self.ordered_left       = 0
+        self.ordered_right      = 0
+        self.count_threshold    = 2
 
         # Initialise pygame
         os.environ["SDL_VIDEO_CENTERED"] = "1"
@@ -67,39 +70,15 @@ class Labyrinth():
 
         # Set up the display
         pygame.display.set_caption("Get to the red square!")
-        screen = pygame.display.set_mode((607, 380))
+        screen = pygame.display.set_mode((1200, 500), pygame.RESIZABLE)
 
         clock = pygame.time.Clock()
         walls = [] # List to hold the walls
         player = Player() # Create the player
 
         # Holds the level layout in a list of strings.
-        level = [
-            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
-            "W                                    W",
-            "W                  WWWWWWWWWWWW      W",
-            "W                                    W",
-            "W      WWWWWWWW              WW      W",
-            "W                                    W",
-            "W      WW      WW        WWWWWWWW    W",
-            "W              WW        WW          W",
-            "W  WWWWWW    WWWWWWWW                W",
-            "W      WW          WWWWWW            W",
-            "W                                    W",
-            "W      WW          WW      WWWWWW   WW",
-            "WWWWWWWWWWWWW  WWWWWW      WW  WW   WW",
-            "W          WW      WW      WW  WW   WW",
-            "WWWWW      WW      WWWWWWWWWW  WW   WW",
-            "W                                    W",
-            "W  WW            WWWW                W",
-            "W                                    W",
-            "W  WWWW    WWWWWWWW      WWWWWW      W",
-            "W          WW                WW      W",
-            "W          WW  EE            WW      W",
-            "W          WW                        W",
-            "W          WW                WW      W",
-            "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW",
-        ]
+        with open("./maze.txt") as f:
+            level = f.readlines()
 
         # Parse the level string above. W = wall, E = exit
         x = y = 0
@@ -117,7 +96,7 @@ class Labyrinth():
         running = True
         while running:
             
-            clock.tick(60)
+            clock.tick(60) # This also controls the speed of the game
             
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
@@ -127,11 +106,17 @@ class Labyrinth():
 
             # Move the player if an arrow key is pressed
             # key = pygame.key.get_pressed()
-            direction_change = recv_conn.recv()
+            direction_change = shared_direction.value
             if direction_change < 0:
-                (x, y) = player.shift_direction(player.move_angle, -player.shift_speed)
+                self.ordered_left += 1
+                if self.ordered_left >= self.count_threshold:
+                    (x, y) = player.shift_direction(player.move_angle, -player.shift_speed)
+                    self.ordered_left = 0
             if direction_change > 0:
-                (x, y) = player.shift_direction(player.move_angle, +player.shift_speed)
+                self.ordered_right += 1
+                if self.ordered_right >= self.count_threshold:
+                    (x, y) = player.shift_direction(player.move_angle, +player.shift_speed)
+                    self.ordered_right = 0
             else:
                 (x, y) = player.shift_direction(player.move_angle, 0)
 
@@ -149,6 +134,6 @@ class Labyrinth():
             pygame.draw.rect(screen, (255, 0, 0), end_rect)
             pygame.draw.rect(screen, (255, 200, 0), player.rect)
             pygame.display.flip()
-            clock.tick(200)
+            clock.tick(360)
 
         pygame.quit()
