@@ -113,7 +113,7 @@ class Backend:
 
                 filtered_buffer     = self.process_buffer()
 
-                direction_change    = self.direction_change(filtered_buffer) # -1 left, 0 no change, 1 right
+                direction_change    = self.detect_head_position(filtered_buffer) # -1 left, 0 no change, 1 right
 
                 # Push to frontend
                 shared_direction.value = direction_change
@@ -203,11 +203,22 @@ class Backend:
         return filtered_buffer
     
 
-    def direction_change(self, signal):
-        med_value           = median(signal[-int(self.sample_rate/4):])
-        std_value           = std(signal[-int(self.sample_rate/2):])
+    def detect_head_position(self, signal):
+        # This is a function that defines a binary outcome: "Head is 
+        # pointing towards left? Or right? Otherwise, just return 0 for 
+        # "head is centered"
 
+        # Whole signal array "signal" 5 seconds long (5 * 200 samples)
+        # /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
+        
+        # ALL OF THIS CAN BE CHANGED AND ADJUSTED
+        # |-------------------------- avg_value --------------------------|
         avg_value           = mean(signal)
+
+        # Detect changes in signal
+        #                                               |-----------------|
+        med_value           = median(signal[-int(self.sample_rate/4):])
+        std_value           = std(signal[-int(self.sample_rate/4):])
 
         signal_baseline     = med_value - avg_value # this value ideally
         # would always be near 0 when looking straight at the screen
@@ -216,6 +227,7 @@ class Backend:
         self.left_threshold = - 4 * std_value
         self.right_threshold = + 4 * std_value
 
+        # Purely for visualization sakes (output in command line)
         self.count = self.count + 1
         if self.count == self.sample_rate:  # Plot once per second to avoid 
                                             # slowing down the program 
