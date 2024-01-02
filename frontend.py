@@ -96,7 +96,7 @@ class Labyrinth():
         running = True
         while running:
             
-            clock.tick(60) # This also controls the speed of the game
+            clock.tick(40) # This also controls the speed of the game
             
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
@@ -109,14 +109,12 @@ class Labyrinth():
             direction_change = shared_direction.value
             if direction_change < 0:
                 self.ordered_left += 1
-                if self.ordered_left >= self.count_threshold:
-                    (x, y) = player.shift_direction(player.move_angle, -player.shift_speed)
-                    self.ordered_left = 0
+                (x, y) = player.shift_direction(player.move_angle, -player.shift_speed)
+                self.ordered_left = 0
             if direction_change > 0:
                 self.ordered_right += 1
-                if self.ordered_right >= self.count_threshold:
-                    (x, y) = player.shift_direction(player.move_angle, +player.shift_speed)
-                    self.ordered_right = 0
+                (x, y) = player.shift_direction(player.move_angle, +player.shift_speed)
+                self.ordered_right = 0
             else:
                 (x, y) = player.shift_direction(player.move_angle, 0)
 

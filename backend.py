@@ -19,9 +19,11 @@ class Backend:
         self.ip             = '127.0.0.1' # Localhost, requires Neuri GUI running
         self.port           = 12344
         self.sample_rate    = 200 # Hz
+        self.left_threshold = 0
+        self.right_threshold= 0
 
         # Set buffer parameters
-        self.buffer_length  = 5 # s
+        self.buffer_length  = 20 # s
         self.num_channels   = 2 # Neuri boards V1.0
         self.target_chan    = 0 # First channel
         self.count          = 0
@@ -212,35 +214,29 @@ class Backend:
         # /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
         
         # ALL OF THIS CAN BE CHANGED AND ADJUSTED
-        # |-------------------------- avg_value --------------------------|
-        avg_value           = mean(signal)
+        # |-------------------------- baseline ---------------------------|
+        baseline            = median(signal)
+        std_signal          = std(signal)
+        self.left_threshold = baseline - 0.75 * std_signal
+        self.right_threshold= baseline + 0.75 * std_signal
+        
 
         # Detect changes in signal
-        #                                               |-----------------|
-        med_value           = median(signal[-int(self.sample_rate/4):])
-        std_value           = std(signal[-int(self.sample_rate/4):])
-
-        signal_baseline     = med_value - avg_value # this value ideally
-        # would always be near 0 when looking straight at the screen
-        # ("neutral head position")
-
-        self.left_threshold = - 4 * std_value
-        self.right_threshold = + 4 * std_value
+        avg_change          = mean(signal[-int(self.sample_rate/4):])
 
         # Purely for visualization sakes (output in command line)
         self.count = self.count + 1
-        if self.count == self.sample_rate:  # Plot once per second to avoid 
+        if self.count == self.sample_rate/2:  # Plot once per second to avoid 
                                             # slowing down the program 
                                             # because of the printing
             print("\n")
-            print(self.left_threshold)
-            print(self.right_threshold)
-            print(signal_baseline)
+            print((round(self.left_threshold), round(self.right_threshold)))
+            print(round(avg_change))
             self.count = 0
 
-        if signal_baseline > self.right_threshold:
+        if avg_change > self.right_threshold:
             return 1
-        elif signal_baseline < self.left_threshold:
+        elif avg_change < self.left_threshold:
             return -1
         else:
             return 0
