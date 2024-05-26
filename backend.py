@@ -23,7 +23,7 @@ class Backend:
         self.right_threshold= 0
 
         # Set buffer parameters
-        self.buffer_length  = 20 # s
+        self.buffer_length  = 2 # s
         self.num_channels   = 2 # Neuri boards V1.0
         self.target_chan    = 0 # First channel
         self.count          = 0
@@ -209,12 +209,6 @@ class Backend:
         # This is a function that defines a binary outcome: "Head is 
         # pointing towards left? Or right? Otherwise, just return 0 for 
         # "head is centered"
-
-        # Whole signal array "signal" 5 seconds long (5 * 200 samples)
-        # /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/
-        
-        # ALL OF THIS CAN BE CHANGED AND ADJUSTED
-        # |-------------------------- baseline ---------------------------|
         baseline            = median(signal)
         std_signal          = std(signal)
         self.left_threshold = baseline - 0.75 * std_signal
@@ -226,7 +220,7 @@ class Backend:
 
         # Purely for visualization sakes (output in command line)
         self.count = self.count + 1
-        if self.count == self.sample_rate/2:  # Plot once per second to avoid 
+        if self.count == self.sample_rate/2:# Plot once per second to avoid 
                                             # slowing down the program 
                                             # because of the printing
             print("\n")
